@@ -11,6 +11,8 @@ namespace Meep.Tech.Data.EFCore {
   /// </summary>
   public partial class ModelEfCoreSettings : Universe.ExtraContext {
     internal Universe _universe;
+    private List<IModel> _modelsToTest
+      = new();
 
     /// <summary>
     /// Whether or not ECSBAM should set up the models with a db context.
@@ -30,6 +32,14 @@ namespace Meep.Tech.Data.EFCore {
     } = false;
 
     /// <summary>
+    /// If every model added to Efcore should be tested. 
+    /// </summary>
+    public bool CollectDefaultModelsForTesting {
+      get;
+      set;
+    } = false;
+
+    /// <summary>
     /// The types to map to the db context.
     /// You can provide a config function if you want, but don't have to (null is default).
     /// </summary>
@@ -42,9 +52,9 @@ namespace Meep.Tech.Data.EFCore {
     /// </summary>
     public Func<
       DbContextOptions<DefaultModelDbContext>, // general options obj
-      Universe,
-      DefaultModelDbContext // the returned options
-    > GetDefaultDbContextForModelSerialization {
+      Universe, // the universe
+      DbContext // the compiled context.
+    > GetDbContextForModelSerialization {
       get;
       set;
     } = (options, universe)
@@ -54,12 +64,16 @@ namespace Meep.Tech.Data.EFCore {
       );
 
     /// <summary>
-    /// The db context used by the serializer
+    /// The db context used by the serializer.
+    /// Is built from GetDbContextForModelSerialization the first time it's called.
     /// </summary>
     public DbContext DbContext {
-      get;
-      private set;
-    }
+      get => _dbContext
+         ??= GetDbContextForModelSerialization(
+           new DbContextOptions<DefaultModelDbContext>(),
+           _universe
+         );
+    } DbContext _dbContext;
 
     public ModelEfCoreSettings(Universe universe) {
       _universe = universe;
@@ -72,7 +86,7 @@ namespace Meep.Tech.Data.EFCore {
       if (TryToSetUpDbContext && !TypesToMapToDbContext.ContainsKey(modelType)) {
         if (ModelsMustOptInToEfCoreUsingAttribute) {
           System.ComponentModel.DataAnnotations.Schema.TableAttribute tableAttribute
-            = modelType.GetCustomAttribute<System.ComponentModel.DataAnnotations.Schema.TableAttribute>();
+            = modelType.GetCustomAttribute<System.ComponentModel.DataAnnotations.Schema.TableAttribute>(true);
           // if we need a table attribute, and it's null, just skip this last set.
           if (tableAttribute is null) {
             return;
@@ -82,15 +96,22 @@ namespace Meep.Tech.Data.EFCore {
         // attach as default (no config function)
         TypesToMapToDbContext[modelType] = null;
       }
+
+      if (CollectDefaultModelsForTesting) {
+        _modelsToTest.Add(defaultModel);
+      }
     }
 
-    protected override void OnLoaderFinalize() {
-      if (TryToSetUpDbContext) {
-        DbContext
-         ??= GetDefaultDbContextForModelSerialization(
-           new DbContextOptions<DefaultModelDbContext>(),
-           _universe
-         );
+    /// <summary>
+    /// Run test on any collected default models.
+    /// CollectDefaultModelsForTesting should be enabled beforhand.
+    /// </summary>
+    public void RunTestsOnDefaultModels() {
+      foreach (IModel model in _modelsToTest) {
+        DbContext.Add(model);
+        DbContext.SaveChanges();
+        DbContext.Remove(model);
+        DbContext.SaveChanges();
       }
     }
   }

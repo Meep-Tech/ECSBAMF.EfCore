@@ -10,7 +10,7 @@ namespace Meep.Tech.Data.EFCore {
   /// <summary>
   /// Used to convert a collection of something to and from a json array
   /// </summary>
-  public abstract class EnumerableToJsonCollectionValueConverter<T> : ValueConverter<IEnumerable<T>, string> {
+  public class EnumerableToJsonCollectionValueConverter<T> : ValueConverter<IEnumerable<T>, string> {
 
     public EnumerableToJsonCollectionValueConverter() :
       base(convertToProviderExpression, convertFromProviderExpression) {

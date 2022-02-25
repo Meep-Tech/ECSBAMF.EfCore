@@ -18,8 +18,10 @@ namespace Meep.Tech.Data.EFCore
     /// <summary>
     /// Initialize the ef core settings for the universe object before it's loaded.
     /// </summary>
-    public static void InitializeXbamEfCoreSettings(this Universe universe, ModelEfCoreSettings modelSerializerSettings)
-      => universe.SetExtraContext(modelSerializerSettings);
+    public static ModelEfCoreSettings InitializeXbamEfCoreSettings(this Universe universe, ModelEfCoreSettings modelSerializerSettings = null) {
+      universe.SetExtraContext(modelSerializerSettings ?? new ModelEfCoreSettings(universe));
+      return universe.GetExtraContext<ModelEfCoreSettings>();
+    }
 
     /// <summary>
     /// Used to set up Ecsbam settings needed for general models in your custom DbContext class.
@@ -34,12 +36,16 @@ namespace Meep.Tech.Data.EFCore
         Type singleEnumValueConverterType = typeof(EnumerationToKeyStringConverter<>).MakeGenericType(enumType);
         ValueConverter singleEnumValueConverter = (ValueConverter)Activator.CreateInstance(singleEnumValueConverterType);
 
+        // single item to string
         modelBuilder.UseValueConverterForType(enumType, singleEnumValueConverter);
+        // multiple items to json array
         modelBuilder.UseValueConverterForType(
           typeof(IEnumerable<>).MakeGenericType(enumType),
-          UseCustomConverterOnCollection._createCollectionConverter(
-            singleEnumValueConverter,
-            singleEnumValueConverterType.MakeCollectionConverterForGeneric(enumType)
+          UseCustomConverterOnEachItemToAJsonArrayAttribute._createConverter(
+            UseCustomConverterOnEachCollectionItemAttribute._createCollectionConverter(
+              singleEnumValueConverter,
+              singleEnumValueConverterType.MakeCollectionConverterForGeneric()
+            )
           )
         );
       }
@@ -84,6 +90,15 @@ namespace Meep.Tech.Data.EFCore
     /// </summary>
     public static ModelBuilder UseCustomValueConverters(this ModelBuilder modelBuilder) {
       foreach (var entityType in modelBuilder.Model.GetEntityTypes()) {
+        // check if it has components and add that field:
+        if (typeof(IReadableComponentStorage).IsAssignableFrom(entityType.ClrType)) {
+          // TODO: make it so the specified field can be changed with ModelComponentsProperty if Components isn't found.
+          modelBuilder.Entity(entityType.ClrType.FullName)
+            .Property(typeof(IReadOnlyDictionary<string, IComponent>), "Components")
+            .IsRequired()
+            .HasConversion(_componentConverter);
+        }
+
         // note that entityType.GetProperties() will throw an exception, so we have to use reflection 
         foreach (var property in entityType.ClrType.GetProperties()) {
           ValueConverter customConverter = null;
@@ -101,15 +116,11 @@ namespace Meep.Tech.Data.EFCore
             Type converterType = typeof(ArchetypeToKeyStringConverter<>)
               .MakeGenericType(property.PropertyType);
             customConverter = (ValueConverter)Activator.CreateInstance(converterType);
-          } // components field:
-          else if (property.TryToGetAttribute<ModelComponentsProperty>(out _)) {
+          } /* // components field:
+          else if (property.TryToGetAttribute<ModelComponentsProperty>(out _) 
+            || property.PropertyType == typeof(IReadOnlyDictionary<string, IComponent>)
+          ) {
             customConverter = _componentConverter;
-          }/* // enumeration type field:
-          else if (property.PropertyType.IsAssignableToGeneric(typeof(Enumeration<>))) {
-
-          } // collection of enumerations:
-          else if (property.PropertyType.IsAssignableToGeneric(typeof(IEnumerable<Enumeration>))) {
-
           }*/
 
           if (customConverter is not null) {
