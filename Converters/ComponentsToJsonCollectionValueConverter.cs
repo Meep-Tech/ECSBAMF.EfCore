@@ -11,24 +11,33 @@ namespace Meep.Tech.Data.EFCore {
   /// <summary>
   /// Used to convert a collection of components to and from a json array
   /// </summary>
-  public class ComponentsToJsonCollectionValueConverter : ValueConverter<IReadOnlyDictionary<string, IComponent>, string> {
+  public abstract class ComponentsToJsonCollectionValueConverter<TComponent> : ValueConverter<IReadOnlyDictionary<string, TComponent>, string> where TComponent : Data.IComponent {
 
     public ComponentsToJsonCollectionValueConverter() :
       base(convertToProviderExpression, convertFromProviderExpression) {
     }
 
-    private static Expression<Func<string, IReadOnlyDictionary<string, IComponent>>> convertFromProviderExpression = x => FromJsonString(x);
-    private static Expression<Func<IReadOnlyDictionary<string, IComponent>, string>> convertToProviderExpression = x => ToJsonString(x);
+    private static readonly Expression<Func<string, IReadOnlyDictionary<string, TComponent>>> convertFromProviderExpression = x => FromJsonString(x);
+    private static readonly Expression<Func<IReadOnlyDictionary<string, TComponent>, string>> convertToProviderExpression = x => ToJsonString(x);
 
-    static IReadOnlyDictionary<string, IComponent> FromJsonString(string componentsJson)
+    static IReadOnlyDictionary<string, TComponent> FromJsonString(string componentsJson)
       => JArray.Parse(componentsJson).Select(token =>
-        IComponent.FromJson(token as JObject)
+        (TComponent)IComponent.FromJson(token as JObject)
       ).ToDictionary(
         component => component.Key,
         component => component
       );
 
-    static string ToJsonString(IReadOnlyDictionary<string, IComponent> components)
+    static string ToJsonString(IReadOnlyDictionary<string, TComponent> components)
       => JArray.FromObject(components.Select(componentData => componentData.Value.ToJson())).ToString();
+  }
+
+  /// <summary>
+  /// Used to convert a collection of generic components to and from a json array
+  /// </summary>
+  public class ComponentsToJsonCollectionValueConverter : ComponentsToJsonCollectionValueConverter<IComponent> {
+    public ComponentsToJsonCollectionValueConverter() :
+      base() {
+    }
   }
 }

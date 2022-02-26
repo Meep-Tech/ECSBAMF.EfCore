@@ -10,8 +10,8 @@ namespace Meep.Tech.Data.EFCore {
   public class EnumerableToEnumerableValueConverter<I, O> : SimpleValueConverter<IEnumerable<I>, IEnumerable<O>> {
 
     public EnumerableToEnumerableValueConverter(
-      Expression<Func<IEnumerable<I>, IEnumerable<O>>> convertToProviderExpression,
-      Expression<Func<IEnumerable<O>, IEnumerable<I>>> convertFromProviderExpression
-    ) : base(convertToProviderExpression, convertFromProviderExpression) {}
+      Func<object, object> convertToProviderExpression,
+      Func<object, object> convertFromProviderExpression
+    ) : base((i) => (IEnumerable<O>)convertToProviderExpression(i), (o) => (IEnumerable<I>)convertFromProviderExpression(o)) {}
   }
 }

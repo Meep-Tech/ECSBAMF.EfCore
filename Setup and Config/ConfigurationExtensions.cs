@@ -10,8 +10,8 @@ namespace Meep.Tech.Data.EFCore
 {
   public static class ConfigurationExtensions {
 
-    static readonly ValueConverter _componentConverter 
-      = new ComponentsToJsonCollectionValueConverter();
+    static readonly ValueConverter _modelComponentsConverter 
+      = new ModelComponentsToJsonCollectionValueConverter();
 
     #region Initialization
 
@@ -32,7 +32,11 @@ namespace Meep.Tech.Data.EFCore
       modelBuilder.AddModelTypes(universe);
 
       // enum type custom converters by default:
-      foreach(System.Type enumType in universe.Enumerations.ByType.Keys) {
+      foreach((System.Type enumType, IReadOnlyList<Enumeration> values) in universe.Enumerations.ByType) {
+        if (enumType != values.First().EnumBaseType) {
+          continue;
+        }
+
         Type singleEnumValueConverterType = typeof(EnumerationToKeyStringConverter<>).MakeGenericType(enumType);
         ValueConverter singleEnumValueConverter = (ValueConverter)Activator.CreateInstance(singleEnumValueConverterType);
 
@@ -91,12 +95,13 @@ namespace Meep.Tech.Data.EFCore
     public static ModelBuilder UseCustomValueConverters(this ModelBuilder modelBuilder) {
       foreach (var entityType in modelBuilder.Model.GetEntityTypes()) {
         // check if it has components and add that field:
-        if (typeof(IReadableComponentStorage).IsAssignableFrom(entityType.ClrType)) {
+        if (typeof(IModel.IReadableComponentStorage).IsAssignableFrom(entityType.ClrType)) {
+          var property = entityType.ClrType.GetProperty("Components");
           // TODO: make it so the specified field can be changed with ModelComponentsProperty if Components isn't found.
           modelBuilder.Entity(entityType.ClrType.FullName)
-            .Property(typeof(IReadOnlyDictionary<string, IComponent>), "Components")
+            .Property(typeof(IReadOnlyDictionary<string, IModel.IComponent>), nameof(IModel.IReadableComponentStorage.Components))
             .IsRequired()
-            .HasConversion(_componentConverter);
+            .HasConversion(_modelComponentsConverter);
         }
 
         // note that entityType.GetProperties() will throw an exception, so we have to use reflection 
@@ -125,7 +130,7 @@ namespace Meep.Tech.Data.EFCore
 
           if (customConverter is not null) {
             modelBuilder.Entity(entityType.Name).Property(property.Name)
-                .HasConversion(customConverter);
+              .HasConversion(customConverter);
           }
         }
       }

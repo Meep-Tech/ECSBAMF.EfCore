@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+﻿using Meep.Tech.Collections.Generic;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -15,7 +16,6 @@ namespace Meep.Tech.Data.EFCore {
 
     public UseCustomConverterOnEachItemToAJsonArrayAttribute(Type ItemConverterType, Type GenericItemTypeOverride = null) 
       : base(ItemConverterType, GenericItemTypeOverride) {}
-
 
     public override ValueConverter CustomConverter {
       get {
@@ -68,54 +68,14 @@ namespace Meep.Tech.Data.EFCore {
     } ValueConverter _customConverter;
 
     internal static ValueConverter _createCollectionConverter(ValueConverter sinlgeItemConverter, Type customConverterType) {
-      Type fromType = customConverterType.GetGenericArguments().First();
-      Type toType = customConverterType.GetGenericArguments().Last();
-
-      Type toConvertDelegateType = typeof(Func<,,>).MakeGenericType(typeof(ValueConverter), fromType, toType);
-      Type toFunctionType = typeof(Func<,>).MakeGenericType(fromType, toType);
-      System.Reflection.MethodInfo toConverterMethod = typeof(UseCustomConverterOnEachCollectionItemAttribute)
-        .GetMethod(nameof(_useSingleToConverterOnCollectionItems), System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
-        .MakeGenericMethod(fromType.GetGenericArguments().First(), toType.GetGenericArguments().First());
-
-      Delegate toConverterDelegate;
-      try {
-        toConverterDelegate = Delegate.CreateDelegate(
-          toConvertDelegateType,
-          sinlgeItemConverter,
-          toConverterMethod
-        ); 
-      } catch (Exception e) {
-        throw new Exception($"\nCould not build delegate of type: {toConvertDelegateType.ToFullHumanReadableNameString()}.\n" +
-          $"Trying to use converter method: {toConverterMethod.ReturnType.ToFullHumanReadableNameString()} {toConverterMethod.Name} ({string.Join(", ", toConverterMethod.GetParameters().Select(p => p.ParameterType.ToFullHumanReadableNameString()))}\n" +
-          $"With single item converter of type: {sinlgeItemConverter.GetType().ToFullHumanReadableNameString()}",e);
-      }
-
-      var toJson = Activator.CreateInstance(
-        toFunctionType,
-        toConverterDelegate
-      );
-
-
-      Type fromFunctionType = typeof(Func<,>).MakeGenericType(toType, fromType);
-      System.Reflection.MethodInfo fromConverterMethod = typeof(UseCustomConverterOnEachCollectionItemAttribute)
-        .GetMethod(nameof(_useSingleFromConverterOnCollectionItems), System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
-        .MakeGenericMethod(toType.GetGenericArguments().First(), fromType.GetGenericArguments().First());
-
-      Delegate fromConverterDelegate = Delegate.CreateDelegate(
-        fromFunctionType,
-        fromConverterMethod
-      );
-
-      var fromJson = Activator.CreateInstance(
-        fromFunctionType,
-        fromConverterDelegate
-      );
-
-      return (ValueConverter)Activator.CreateInstance(
-         customConverterType,
-         toJson,
-         fromJson
-       );
+      System.Reflection.ConstructorInfo[] customConverterCtors = customConverterType.GetConstructors();
+      System.Reflection.ConstructorInfo customConverterCtor = customConverterCtors.First();
+      var to = new Func<object, object>((i) => (i as IEnumerable).Cast<object>().Select(ii => sinlgeItemConverter.ConvertToProvider(ii)));
+      var from = new Func<object, object>((i) => (i as IEnumerable).Cast<object>().Select(ii => sinlgeItemConverter.ConvertFromProvider(ii)));
+      return (ValueConverter)customConverterCtor.Invoke(new object[] {
+        to,
+        from
+      });
     }
 
     static IEnumerable<O> _useSingleToConverterOnCollectionItems<I,O>(ValueConverter sinlgeItemConverter, IEnumerable<I> items) {
