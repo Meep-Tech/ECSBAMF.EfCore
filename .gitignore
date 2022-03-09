@@ -1,4 +1,4 @@
 /bin
 /obj
 *.sln
-*.csproj
+post-build-copy.csproj
