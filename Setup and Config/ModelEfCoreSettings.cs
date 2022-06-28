@@ -82,7 +82,8 @@ namespace Meep.Tech.Data.EFCore {
     /// <summary>
     /// Add all model types to the dbcontext.
     /// </summary>
-    protected override void OnModelTypeRegistered(Type modelType, IModel defaultModel) {
+    /// 
+    protected override Action<Type> OnModelTypeWasInitialized => modelType => {
       if (TryToSetUpDbContext && !TypesToMapToDbContext.ContainsKey(modelType)) {
         if (ModelsMustOptInToEfCoreUsingAttribute) {
           System.ComponentModel.DataAnnotations.Schema.TableAttribute tableAttribute
@@ -96,11 +97,14 @@ namespace Meep.Tech.Data.EFCore {
         // attach as default (no config function)
         TypesToMapToDbContext[modelType] = null;
       }
+    };
 
+    ///<summary><inheritdoc/></summary>
+    protected override Action<Archetype, IModel> OnLoaderTestModelBuildComplete => (Archetype archetype, IModel testModel) => {
       if (CollectDefaultModelsForTesting) {
-        _modelsToTest.Add(defaultModel);
+        _modelsToTest.Add(testModel);
       }
-    }
+    };
 
     /// <summary>
     /// Run test on any collected default models.

@@ -11,7 +11,7 @@ namespace Meep.Tech.Data.EFCore {
   /// <summary>
   /// Used to convert a collection of components to and from a json array
   /// </summary>
-  public abstract class ComponentsToJsonCollectionValueConverter<TComponent> : ValueConverter<IReadOnlyDictionary<string, TComponent>, string> where TComponent : Data.IComponent {
+  public class ComponentsToJsonCollectionValueConverter<TComponent> : ValueConverter<IReadOnlyDictionary<string, TComponent>, string> where TComponent : Data.IComponent {
 
     public ComponentsToJsonCollectionValueConverter() :
       base(convertToProviderExpression, convertFromProviderExpression) {

@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+﻿using Meep.Tech.Collections.Generic;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System;
 using System.Linq.Expressions;
 
@@ -22,7 +23,7 @@ namespace Meep.Tech.Data.EFCore {
         ? parts.Length == 1
           ? Archetypes.DefaultUniverse.Enumerations.Get<TEnumeration>(parts[0])
           : parts.Length == 2
-            ? Universe.Get(parts[1]).Enumerations.Get<TEnumeration>(parts[0])
+            ? (Universe.s.TryToGet(parts[1]) ?? Archetypes.DefaultUniverse).Enumerations.Get<TEnumeration>(parts[0])
             : throw new ArgumentException("EnumerationKey")
         : throw new ArgumentNullException("EnumerationKey");
     }

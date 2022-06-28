@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+﻿using Meep.Tech.Collections.Generic;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System;
 using System.Linq.Expressions;
 
@@ -22,7 +23,7 @@ namespace Meep.Tech.Data.EFCore {
         ? parts.Length == 1
           ? Archetypes.Id[key].Archetype
           : parts.Length == 2
-            ? Universe.Get(parts[1]).Archetypes.Id[parts[0]].Archetype
+            ? (Universe.s.TryToGet(parts[1]) ?? Archetypes.DefaultUniverse).Archetypes.Id[parts[0]].Archetype
             : throw new ArgumentException("ArchetypeKey")
         : throw new ArgumentNullException("ArchetypeKey"));
     }
@@ -51,7 +52,7 @@ namespace Meep.Tech.Data.EFCore {
         ? parts.Length == 1
           ? Archetypes.Id[key].Archetype
           : parts.Length == 2
-            ? Universe.Get(parts[1]).Archetypes.Id[parts[2]].Archetype
+            ? (Universe.s.TryToGet(parts[1]) ?? Archetypes.DefaultUniverse).Archetypes.Id[parts[2]].Archetype
             : throw new ArgumentException("ArchetypeKey")
         : throw new ArgumentNullException("ArchetypeKey");
     }

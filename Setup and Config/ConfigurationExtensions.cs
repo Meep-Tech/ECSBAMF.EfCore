@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Meep.Tech.Data.Reflection;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System;
@@ -99,8 +100,10 @@ namespace Meep.Tech.Data.EFCore
           var property = entityType.ClrType.GetProperty("Components");
           // TODO: make it so the specified field can be changed with ModelComponentsProperty if Components isn't found.
           modelBuilder.Entity(entityType.ClrType.FullName)
-            .Property(typeof(IReadOnlyDictionary<string, IModel.IComponent>), nameof(IModel.IReadableComponentStorage.Components))
-            .IsRequired()
+            .Property(
+              typeof(IReadableComponentStorage.ReadOnlyModelComponentCollection),
+              nameof(IModel.IReadableComponentStorage.Components)
+            ).IsRequired()
             .HasConversion(_modelComponentsConverter);
         }
 

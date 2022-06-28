@@ -1,4 +1,5 @@
 ﻿using Meep.Tech.Collections.Generic;
+using Meep.Tech.Data.Reflection;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -95,7 +96,7 @@ namespace Meep.Tech.Data.EFCore {
 
     public static Type MakeCollectionConverterForGeneric(this Type type, Type itemType = null) {
       IEnumerable<Type> baseConverterTypes
-        = type.GetInheritedGenericTypes(typeof(ValueConverter<,>));
+        = type.GetFirstInheritedGenericTypeParameters(typeof(ValueConverter<,>));
 
       Type convertFromType = baseConverterTypes.First();
       Type convertToType = itemType ?? baseConverterTypes.Last();
