@@ -83,28 +83,30 @@ namespace Meep.Tech.Data.EFCore {
     /// Add all model types to the dbcontext.
     /// </summary>
     /// 
-    protected override Action<Type> OnModelTypeWasInitialized => modelType => {
-      if (TryToSetUpDbContext && !TypesToMapToDbContext.ContainsKey(modelType)) {
-        if (ModelsMustOptInToEfCoreUsingAttribute) {
-          System.ComponentModel.DataAnnotations.Schema.TableAttribute tableAttribute
-            = modelType.GetCustomAttribute<System.ComponentModel.DataAnnotations.Schema.TableAttribute>(true);
-          // if we need a table attribute, and it's null, just skip this last set.
-          if (tableAttribute is null) {
-            return;
+    protected override Action<bool, Type, Exception> OnLoaderModelFullInitializationComplete 
+      => (success, modelType, error) => {
+        if (success && TryToSetUpDbContext && !TypesToMapToDbContext.ContainsKey(modelType)) {
+          if (ModelsMustOptInToEfCoreUsingAttribute) {
+            System.ComponentModel.DataAnnotations.Schema.TableAttribute tableAttribute
+              = modelType.GetCustomAttribute<System.ComponentModel.DataAnnotations.Schema.TableAttribute>(true);
+            // if we need a table attribute, and it's null, just skip this last set.
+            if (tableAttribute is null) {
+              return;
+            }
           }
-        }
 
-        // attach as default (no config function)
-        TypesToMapToDbContext[modelType] = null;
-      }
-    };
+          // attach as default (no config function)
+          TypesToMapToDbContext[modelType] = null;
+        }
+      };
 
     ///<summary><inheritdoc/></summary>
-    protected override Action<Archetype, IModel> OnLoaderTestModelBuildComplete => (Archetype archetype, IModel testModel) => {
-      if (CollectDefaultModelsForTesting) {
-        _modelsToTest.Add(testModel);
-      }
-    };
+    protected override Action<bool, Archetype, IModel, Exception> OnLoaderTestModelBuildComplete 
+      => (bool success, Archetype archetype, IModel testModel, Exception error) => {
+        if (success && CollectDefaultModelsForTesting) {
+          _modelsToTest.Add(testModel);
+        }
+      };
 
     /// <summary>
     /// Run test on any collected default models.
